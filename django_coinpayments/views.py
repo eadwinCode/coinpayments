@@ -102,14 +102,15 @@ class PaymentListView(ListView):
 # HTTP_HMAC'9320f7f970294b0ea2c6e82519f839a65972c635bb137f3de859f5ede37c0adfa0607c10c8a3ce41dca3c038beab1b685013fb9fca8fdec984342e2338b5b6e0'
 @csrf_exempt
 def ipn_view(request):
-    p = request.POST
+    p = request.POST.dict()
     ipn_mode = p.get('ipn_mode')
     if ipn_mode != 'hmac':
         return HttpResponseBadRequest('IPN Mode is not HMAC')
     http_hmac = request.META.get('HTTP_HMAC')
     if not http_hmac:
         return HttpResponseBadRequest('No HMAC signature sent.')
-    our_hmac = create_ipn_hmac(request)
+    ss = request.POST.dict()
+    our_hmac = create_ipn_hmac(ss)
     print("Our hmac == server hmac - {res}" % {'res': str(our_hmac == http_hmac)})
 
     merchant_id = getattr(settings, 'COIN_PAYMENTS_MERCHANT_ID', None)

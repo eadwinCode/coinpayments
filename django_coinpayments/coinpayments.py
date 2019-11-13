@@ -22,15 +22,15 @@ class CoinPayments():
         returns and initialized instance of `CoinPayments`
         """
         if not getattr(settings, 'COIN_PAYMENTS_API_KEY', None) or \
-           not getattr(settings, 'COIN_PAYMENTS_API_PRIVATE_KEY', None):
-            raise ImproperlyConfigured('COIN_PAYMENTS_API_KEY and COIN_PAYMENTS_API_PRIVATE_KEY are required!')
+           not getattr(settings, 'COIN_PAYMENTS_IPN_SECRET', None):
+            raise ImproperlyConfigured('COIN_PAYMENTS_API_KEY and COIN_PAYMENTS_IPN_SECRET are required!')
         ipn_url = getattr(settings, 'COIN_PAYMENTS_IPN_URL', None)
         if ipn_url:
             if not getattr(settings, 'COIN_PAYMENTS_IPN_SECRET', None) or \
                not getattr(settings, 'COIN_PAYMENTS_MERCHANT_ID', None):
                 raise ImproperlyConfigured('COIN_PAYMENTS_IPN_SECRET and '
                                            'COIN_PAYMENTS_MERCHANT_ID are required if IPN is turned on!')
-        return CoinPayments(settings.COIN_PAYMENTS_API_KEY, settings.COIN_PAYMENTS_API_PRIVATE_KEY, ipn_url=ipn_url)
+        return CoinPayments(settings.COIN_PAYMENTS_API_KEY, settings.COIN_PAYMENTS_IPN_SECRET, ipn_url=ipn_url)
 
     def create_hmac(self, **params):
         """
