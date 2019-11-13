@@ -1,0 +1,24 @@
+{% extends 'django_coinpayments/payment-base.html' %}
+
+{% block content %}
+{% endblock content %}
+
+
+{% block js %}
+    <script>
+    function refresh() {
+      $.ajax({
+        url: '{% url '' %}',
+        success: function(data) {
+          $('#scoreboardDiv').html(data);
+        }
+      });
+    }
+
+    $(document).ready(function($) {
+      refresh();
+      setInterval("refresh()", 3000);
+    });
+
+    </script>
+{% endblock js %}
