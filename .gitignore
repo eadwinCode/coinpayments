@@ -22,6 +22,7 @@ sdist/
 var/
 media/
 .idea/
+.theia/
 wheels/
 *.migrations/
 

@@ -109,7 +109,7 @@ def ipn_view(request):
     http_hmac = request.META.get('HTTP_HMAC')
     if not http_hmac:
         return HttpResponseBadRequest('No HMAC signature sent.')
-    our_hmac = create_ipn_hmac(request)
+    our_hmac = create_ipn_hmac(request.POST)
     print("Our hmac == server hmac - {res}" % {'res': str(our_hmac == http_hmac)})
 
     merchant_id = getattr(settings, 'COIN_PAYMENTS_MERCHANT_ID', None)

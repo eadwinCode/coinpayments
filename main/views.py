@@ -17,7 +17,7 @@ class ExamplePaymentForm(forms.ModelForm):
 def create_tx(request, payment):
     context = {}
     try:
-        tx = payment.create_tx(ipn_url=request.build_absolute_uri(reverse(settings.COIN_PAYMENTS_IPN_URL)))
+        tx = payment.create_tx()
         payment.status = Payment.PAYMENT_STATUS_PENDING
         payment.save()
         context['object'] = payment
