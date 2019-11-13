@@ -90,6 +90,7 @@ class Payment(TimeStampedModel):
     provider_tx = models.OneToOneField(CoinPaymentsTransaction, on_delete=models.CASCADE,
                                        verbose_name=_('Payment transaction'), null=True, blank=True)
     status = models.CharField(max_length=4, choices=PAYMENT_STATUS_CHOICES)
+    coin_payment_status = models.CharField(max_length=4, default="Waiting for buyer")
     objects = PaymentManager()
 
     class Meta:

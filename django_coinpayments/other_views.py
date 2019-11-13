@@ -28,7 +28,7 @@ def mark_as_paid(request, tx_id):
     )
 
     coin_payments.url = request.build_absolute_uri(reverse(settings.COIN_PAYMENTS_IPN_URL))
-    response = coin_payments.request('post', **params)
+    response = coin_payments.example_request(**params)
     raise CoinPaymentsProviderError(response['error'])
 # redirect to successful payment
 # params = QueryDict(

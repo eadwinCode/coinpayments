@@ -22,15 +22,15 @@ class CoinPayments():
         returns and initialized instance of `CoinPayments`
         """
         if not getattr(settings, 'COIN_PAYMENTS_API_KEY', None) or \
-           not getattr(settings, 'COIN_PAYMENTS_API_PRIVATE_KEY', None):
-            raise ImproperlyConfigured('COIN_PAYMENTS_API_KEY and COIN_PAYMENTS_API_PRIVATE_KEY are required!')
+           not getattr(settings, 'COIN_PAYMENTS_PRIVATE_KEY', None):
+            raise ImproperlyConfigured('COIN_PAYMENTS_API_KEY and COIN_PAYMENTS_PRIVATE_KEY are required!')
         ipn_url = getattr(settings, 'COIN_PAYMENTS_IPN_URL', None)
         if ipn_url:
             if not getattr(settings, 'COIN_PAYMENTS_IPN_SECRET', None) or \
                not getattr(settings, 'COIN_PAYMENTS_MERCHANT_ID', None):
                 raise ImproperlyConfigured('COIN_PAYMENTS_IPN_SECRET and '
                                            'COIN_PAYMENTS_MERCHANT_ID are required if IPN is turned on!')
-        return CoinPayments(settings.COIN_PAYMENTS_API_KEY, settings.COIN_PAYMENTS_API_PRIVATE_KEY, ipn_url=ipn_url)
+        return CoinPayments(settings.COIN_PAYMENTS_API_KEY, settings.COIN_PAYMENTS_PRIVATE_KEY, ipn_url=ipn_url)
 
     def create_hmac(self, **params):
         """
@@ -58,6 +58,36 @@ class CoinPayments():
         elif request_method == 'post':
             headers['Content-Type'] = 'application/x-www-form-urlencoded'
             req = urllib.request.Request(self.url, data=encoded, headers=headers)
+        try:
+            response = urllib.request.urlopen(req)
+            status_code = response.getcode()
+            response_body = response.read()
+        except urllib.error.HTTPError as e:
+            status_code = e.getcode()
+            response_body = e.read()
+        return json.loads(response_body)
+    
+    def example_create_hmac(self, **params):
+        if not getattr(settings, 'COIN_PAYMENTS_IPN_SECRET', None):
+            raise ImproperlyConfigured('COIN_PAYMENTS_IPN_SECRET is required if IPN is turned on!')
+
+        ipn_secret = getattr(settings, 'COIN_PAYMENTS_IPN_SECRET')
+        encoded = urllib.parse.urlencode(params).encode('utf-8')
+        return encoded, hmac.new(bytearray(ipn_secret, 'utf-8'), encoded, hashlib.sha512).hexdigest()
+    
+    def example_request(self, **params):
+        """
+        The basic request that all API calls use
+        the parameters are joined in the actual api methods so the parameter
+        strings can be passed and merged inside those methods instead of the
+        request method
+        """
+        encoded, sig = self.example_create_hmac(**params)
+
+        headers = {'hmac': sig}
+
+        headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        req = urllib.request.Request(self.url, data=encoded, headers=headers)
         try:
             response = urllib.request.urlopen(req)
             status_code = response.getcode()

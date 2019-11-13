@@ -14,6 +14,7 @@ from .models import (
 
 from django.views.decorators.csrf import csrf_exempt
 from django.http.response import HttpResponseBadRequest
+from django.http import HttpResponse
 from django.conf import settings
 from .utils import create_ipn_hmac
 from decimal import Decimal
@@ -80,37 +81,18 @@ class PaymentListView(ListView):
 # received_amount = '0'
 # received_confirms = '0'
 
-
-# <QueryDict: {'amount1': ['1'],
-# 'amount2': ['1'],
-# 'buyer_name': ['CoinPayments API'],
-# 'currency1': ['BCH'],
-# 'currency2': ['BCH'],
-# 'fee': ['0.006'],
-# 'invoice': ['7b1af7d8-5e06-4fbb-8b27-64b0e89d2388'],
-# 'ipn_id': ['545a488a9cb7f37b88e537367395c5d2'],
-# 'ipn_mode': ['hmac'],
-# 'ipn_type': ['api'],
-# 'ipn_version': ['1.0'],
-# 'merchant': ['8d683f17575a9544c6180206f52d4a9c'],
-# 'received_amount': ['0'],
-# 'received_confirms': ['0'],
-# 'status': ['0'],
-# 'status_text': ['Waiting for buyer funds...'],
-# 'txn_id': ['CPCH7FVM3DLIBXFTORBRAMXVQY']}>
-
-# HTTP_HMAC'9320f7f970294b0ea2c6e82519f839a65972c635bb137f3de859f5ede37c0adfa0607c10c8a3ce41dca3c038beab1b685013fb9fca8fdec984342e2338b5b6e0'
 @csrf_exempt
 def ipn_view(request):
-    p = request.POST
+    p = request.POST.dict()
     ipn_mode = p.get('ipn_mode')
     if ipn_mode != 'hmac':
         return HttpResponseBadRequest('IPN Mode is not HMAC')
     http_hmac = request.META.get('HTTP_HMAC')
     if not http_hmac:
         return HttpResponseBadRequest('No HMAC signature sent.')
-    our_hmac = create_ipn_hmac(request.POST)
-    print("Our hmac == server hmac - {res}" % {'res': str(our_hmac == http_hmac)})
+    our_hmac = create_ipn_hmac(p)
+    if our_hmac != http_hmac:
+        return HttpResponseBadRequest('Invalid HMAC signature sent')
 
     merchant_id = getattr(settings, 'COIN_PAYMENTS_MERCHANT_ID', None)
     if p.get('merchant') != merchant_id:
@@ -134,6 +116,7 @@ def ipn_view(request):
             if payment.amount_paid == payment.amount:
                 payment.status = Payment.PAYMENT_STATUS_PAID
             payment.save()
+    return HttpResponse("OK", content_type="text/plain")
 # payment = Payment.objects.create(currency_original=tariff.currency, currency_paid=form_data['currency'],
 #                                          status=PAYMENT_STATUS_PROVIDER_PENDING,
 #                                          amount=tariff.cost, amount_paid=decimal.Decimal(0), order=order)
