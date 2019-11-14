@@ -45,9 +45,10 @@ class CoinWithdrawalTransaction(TimeStampedModel):
 
 class Withdrawal(TimeStampedModel):
     WITHDRAWAL_STATUS_CANCELLED = 'CANCEL'
-    WITHDRAWAL_STATUS_WAITING = 'WAIT',
+    WITHDRAWAL_STATUS_WAITING = 'WAIT'
     WITHDRAWAL_STATUS_PENDING = 'PEND'
     WITHDRAWAL_STATUS_COMPLETED = 'COMPL'
+    
     class Meta:
         verbose_name = _('Withdrawal')
         verbose_name_plural = _('Withdrawals')
@@ -97,8 +98,8 @@ class Withdrawal(TimeStampedModel):
         auto_confirm = 1 if self.auto_confirm else 0
         add_tx_fee = 1 if self.add_tx_fee else 0
 
-        params = dict(amount=self.amount, currency=self.currency,auto_confirm=auto_confirm,
-                      currency2=self.currency2, address=self.send_address, note=self.note)
+        params = dict(amount=self.amount.normalize, currency=self.currency,auto_confirm=auto_confirm,
+                      add_tx_fee=add_tx_fee, currency2=self.currency2, address=self.send_address, note=self.note)  
         params.update(**kwargs)
         result = obj.create_withdrawal(params)
         if result['error'] == 'ok':

@@ -17,7 +17,7 @@ class ExamplePaymentForm(forms.ModelForm):
 class ExampleWithdrawalForm(forms.ModelForm):
     class Meta:
         model = Withdrawal
-        fields = ['amount', 'currency', 'currency2', 'send_address']
+        fields = ['amount', 'currency', 'currency2', 'send_address', 'auto_confirm', 'add_tx_fee' ]
 
 
 def create_tx(request, payment):
@@ -75,6 +75,17 @@ class WithdrawalSetupView(FormView):
 class PaymentList(ListView):
     model = Payment
     template_name = 'django_coinpayments/payment_list.html'
+
+
+class WithdrawalList(ListView):
+    model = Withdrawal
+    template_name = 'django_coinpayments/withdrawal_list.html'
+
+
+class WithdrawalDetail(DetailView):
+    model = Withdrawal
+    template_name = 'django_coinpayments/withdrawal_result.html'
+    context_object_name = 'object'
 
 
 def create_new_payment(request, pk):

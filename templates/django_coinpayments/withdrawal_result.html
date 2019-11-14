@@ -1,0 +1,17 @@
+{% extends 'django_coinpayments/base.html' %}
+{% block content %}
+  {% if error %}
+    <div class="alert alert-danger" role="alert">
+      An error occured: {{ error }}
+    </div>
+  {% else %}
+    Withdrawal created successfully.
+    Withdrawal amount: {{ object.amount.normalize }} {{ object.currency }}
+    <h4>CoinPayments.net Transaction <strong>{{ object.provider_tx.id }}</strong></h4>
+    <p>
+      Sent: {{ object.provider_tx.amount.normalize }}
+      {{ object.currency }}
+      to {{ object.provider_tx.send_address }}
+    </p>
+  {% endif %}
+{% endblock content %}
