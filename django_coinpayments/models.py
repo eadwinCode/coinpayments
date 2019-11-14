@@ -48,24 +48,31 @@ class Withdrawal(TimeStampedModel):
     WITHDRAWAL_STATUS_WAITING = 'WAIT',
     WITHDRAWAL_STATUS_PENDING = 'PEND'
     WITHDRAWAL_STATUS_COMPLETED = 'COMPL'
-    WITHDRAWAL_STATUS_CHOICES = (
+    class Meta:
+        verbose_name = _('Withdrawal')
+        verbose_name_plural = _('Withdrawals')
+
+    WITHDRAWAL_STATUS = (
         (WITHDRAWAL_STATUS_CANCELLED, _('Cancelled')),
         (WITHDRAWAL_STATUS_WAITING, _('Waiting for email confirmation')),
         (WITHDRAWAL_STATUS_PENDING, _('Pending')),
-        (WITHDRAWAL_STATUS_COMPLETED, _('Completed')),
+        (WITHDRAWAL_STATUS_COMPLETED, _('Completed'))
     )
-    objects = WithdrawalManager()
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     currency = models.CharField(max_length=8, choices=get_coins_list(), verbose_name=_('Withdrawal currency'))
     currency2 = models.CharField(max_length=8, choices=get_coins_list(), default=USD, verbose_name=_('Exchange currency'))
-    note = models.TextField(verbose_name=_('Note'))
-    status = models.CharField(max_length=6, choices=WITHDRAWAL_STATUS_CHOICES)
-    provider_tx = models.OneToOneField(CoinWithdrawalTransaction, on_delete=models.CASCADE,
-                                       verbose_name=_('Withdrawal transaction'), null=True, blank=True)
+    note = models.TextField(verbose_name=_('Note'), null=True, blank=True)
+    status = models.CharField(max_length=8, choices=WITHDRAWAL_STATUS)
+
     amount = models.DecimalField(max_digits=65, decimal_places=18, verbose_name=_('Amount'))
     send_address = models.CharField(max_length=150, verbose_name=_('Send Address'))
     auto_confirm = models.BooleanField(default=False,verbose_name=_('Auto Confirm'))
     add_tx_fee = models.BooleanField(default=True,verbose_name=_('Add Transaction Fee'))
+
+    provider_tx = models.OneToOneField(CoinWithdrawalTransaction, on_delete=models.CASCADE,
+                                       verbose_name=_('Withdrawal transaction'), null=True, blank=True)
+    objects = WithdrawalManager()
 
     def __str__(self):
         return f"Paid {self.amount}"
@@ -91,7 +98,7 @@ class Withdrawal(TimeStampedModel):
         add_tx_fee = 1 if self.add_tx_fee else 0
 
         params = dict(amount=self.amount, currency=self.currency,auto_confirm=auto_confirm,
-                      currency2=self.currency2, address=self.send_address)
+                      currency2=self.currency2, address=self.send_address, note=self.note)
         params.update(**kwargs)
         result = obj.create_withdrawal(params)
         if result['error'] == 'ok':

@@ -89,7 +89,7 @@ def create_new_payment(request, pk):
     return create_tx(request, payment)
 
 
-def payment_info(request, tx_id):
+def payments_info(request, tx_id):
     payment = get_object_or_404(Payment, provider_tx_id__exact=tx_id)
     res = payment.get_tx_info()
     if res['error'] == 'ok':
