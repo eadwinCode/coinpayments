@@ -272,3 +272,17 @@ class CoinPayments():
                        'version': self.version,
                        'format': self.format})
         return self.request('post', **params)
+    
+
+    def get_tx_info(self, params=None):
+        """
+        Get tx info
+        https://www.coinpayments.net/apidoc-get-tx-info
+        """
+        if params is None:
+            params = {}
+        params.update({'cmd': 'get_tx_info',
+                       'key': self.publicKey,
+                       'version': self.version,
+                       'format': self.format})
+        return self.request('post', **params)

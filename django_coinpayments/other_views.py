@@ -1,15 +1,12 @@
 from django.core.exceptions import ImproperlyConfigured
-from django.shortcuts import render_to_response, reverse
+from django.shortcuts import render_to_response, reverse, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from django_coinpayments.coinpayments import CoinPayments
 from django_coinpayments.exceptions import CoinPaymentsProviderError
-from django_coinpayments.models import Payment
+from django_coinpayments.models import Payment, Withdrawal
 from django.conf import settings
 from django.http import QueryDict
-
-def get_payment_status(request):
-    return render_to_response('django_coinpayments/payment-successful.html', {})
 
 
 @csrf_exempt
@@ -29,7 +26,7 @@ def mark_as_paid(request, tx_id):
 
     coin_payments.url = request.build_absolute_uri(reverse(settings.COIN_PAYMENTS_IPN_URL))
     response = coin_payments.example_request(**params)
-    raise CoinPaymentsProviderError(response['error'])
+    render_to_response('django_coinpayments/payment-successful.html', {'payment': payment})
 # redirect to successful payment
 # params = QueryDict(
 #        f"amount1=1&amount2=1&buyer_name=CoinPayments API \

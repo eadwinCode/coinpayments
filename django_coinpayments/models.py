@@ -11,6 +11,7 @@ from .utils import get_coins_list, USD
 import datetime
 from decimal import Decimal
 from django.utils.translation import ugettext_lazy as _
+from .manager import PaymentManager, WithdrawalManager
 
 
 class CoinPaymentsTransaction(TimeStampedModel):
@@ -31,42 +32,89 @@ class CoinPaymentsTransaction(TimeStampedModel):
         verbose_name_plural = _('CoinPayments Transactions')
 
 
-class PaymentManager(models.Manager):
-    def get_late_payments(self):
-        """
-        Returns payments that are already late by timeout, not filtering their status
-        """
-        return self.get_queryset().filter(provider_tx__isnull=False,
-                                          provider_tx__timeout__lte=timezone.now())
+class CoinWithdrawalTransaction(TimeStampedModel):
+    class Meta:
+        verbose_name = _('Withdrawal Transaction')
+        verbose_name_plural = _('Withdrawals Transactions')
+    
+    id = models.CharField(max_length=100, verbose_name=_('id'), primary_key=True, editable=True)
+    send_address = models.CharField(max_length=150, verbose_name=_('Send Address'))
+    amount = models.DecimalField(max_digits=65, decimal_places=18, verbose_name=_('Amount'))
+    coin = models.CharField(max_length=20, verbose_name=_('Coin'))
 
-    def get_cancelled_payments(self):
-        """
-        Returns payments that are already late and should be timed out
-        """
-        return self.get_late_payments().filter(status__in=[self.model.PAYMENT_STATUS_PENDING])
 
-    def get_timed_out_payments(self):
-        """
-        Returns payments that are timed out
-        """
-        return self.get_late_payments().filter(status__in=[self.model.PAYMENT_STATUS_TIMEOUT])
+class Withdrawal(TimeStampedModel):
+    WITHDRAWAL_STATUS_CANCELLED = 'CANCEL'
+    WITHDRAWAL_STATUS_WAITING = 'WAIT',
+    WITHDRAWAL_STATUS_PENDING = 'PEND'
+    WITHDRAWAL_STATUS_COMPLETED = 'COMPL'
+    WITHDRAWAL_STATUS_CHOICES = (
+        (WITHDRAWAL_STATUS_CANCELLED, _('Cancelled')),
+        (WITHDRAWAL_STATUS_WAITING, _('Waiting for email confirmation')),
+        (WITHDRAWAL_STATUS_PENDING, _('Pending')),
+        (WITHDRAWAL_STATUS_COMPLETED, _('Completed')),
+    )
+    objects = WithdrawalManager()
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    currency = models.CharField(max_length=8, choices=get_coins_list(), verbose_name=_('Withdrawal currency'))
+    currency2 = models.CharField(max_length=8, choices=get_coins_list(), default=USD, verbose_name=_('Exchange currency'))
+    note = models.TextField(verbose_name=_('Note'))
+    status = models.CharField(max_length=6, choices=WITHDRAWAL_STATUS_CHOICES)
+    provider_tx = models.OneToOneField(CoinWithdrawalTransaction, on_delete=models.CASCADE,
+                                       verbose_name=_('Withdrawal transaction'), null=True, blank=True)
+    amount = models.DecimalField(max_digits=65, decimal_places=18, verbose_name=_('Amount'))
+    send_address = models.CharField(max_length=150, verbose_name=_('Send Address'))
+    auto_confirm = models.BooleanField(default=False,verbose_name=_('Auto Confirm'))
+    add_tx_fee = models.BooleanField(default=True,verbose_name=_('Add Transaction Fee'))
 
-    def mark_timed_out_payments(self):
+    def __str__(self):
+        return f"Paid {self.amount}"
+    
+    def create_wx(self, **kwargs):
         """
-        Marks late payments as timed out
-        """
-        return self.get_late_payments().update(status=self.model.PAYMENT_STATUS_TIMEOUT)
+        :param kwargs:
+            address      The address to send the funds to in currency_paid network
+            amount       The amount to transfer.
 
-    def get_pending_payments(self):
-        return self.get_queryset() \
-            .filter(status__in=[self.model.PAYMENT_STATUS_PENDING]) \
-            .exclude(id__in=self.get_late_payments())
+            currency     The cryptocurrency to withdraw. (BTC, LTC, etc.)
+            currency2    Optional currency to use to to withdraw 'amount' worth of 'currency2' in 'currency' coin. 
+                         This is for exchange rate calculation only and will not convert coins or change which currency is withdrawn.
+                         For example, to withdraw 1.00 USD worth of BTC you would specify 'currency'='BTC', 'currency2'='USD', and 'amount'='1.00'
+            
+            ipn_url      URL for your IPN callbacks.
+                         If not set it will use the IPN URL in your Edit Settings page if you have one set.
+        :return: `CoinWithdrawalTransaction` instance
+        """
+        obj = CoinPayments.get_instance()
 
-    def get_successful_payments(self):
-        """
-        Returns successfully paid payments
-        """
-        return self.get_queryset().filter(status__in=[self.model.PAYMENT_STATUS_PAID])
+        auto_confirm = 1 if self.auto_confirm else 0
+        add_tx_fee = 1 if self.add_tx_fee else 0
+
+        params = dict(amount=self.amount, currency=self.currency,auto_confirm=auto_confirm,
+                      currency2=self.currency2, address=self.send_address)
+        params.update(**kwargs)
+        result = obj.create_withdrawal(params)
+        if result['error'] == 'ok':
+            result = result['result']
+            w = CoinWithdrawalTransaction.objects.create(id=result['id'],
+                                                       amount=Decimal(result['amount']),
+                                                       address=self.send_address,
+                                                       confirms_needed=int(result['confirms_needed']),
+                                                       qrcode_url=result['qrcode_url'],
+                                                       status_url=result['status_url'])
+            if int(result['status']) == 0:
+                self.status = self.WITHDRAWAL_STATUS_WAITING
+            self.provider_tx = w
+            self.save()
+        else:
+            raise CoinPaymentsProviderError(result['error'])
+
+        return w
+    
+    def get_withdrawal_info(self):
+        obj = CoinPayments.get_instance()
+        params = dict(id=self.provider_tx.id)
+        return obj.get_withdrawal_info(params)
 
 
 class Payment(TimeStampedModel):
@@ -152,3 +200,14 @@ class Payment(TimeStampedModel):
             raise CoinPaymentsProviderError(result['error'])
 
         return c
+
+    def get_tx_info(self, **kwargs):
+        """
+        :param kwargs:
+            txid = transition id
+            full = Set to 1 to also include the raw checkout and shipping data for the payment if available. (default: 0)
+        """
+        obj = CoinPayments.get_instance()
+        params = dict(txid=self.provider_tx.id)
+        params.update(**kwargs)
+        return obj.get_tx_info(params)

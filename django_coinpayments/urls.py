@@ -8,9 +8,10 @@ from . import views, other_views
 app_name = 'django_coin_payments'
 
 urlpatterns = [
-    path('ipn', views.ipn_view, name="notification_view")
+    path('ipn', views.ipn_view, name="ipn_view"),
 ]
 
-urlpatterns +=  [
-    path('debug/mark_as_paid/<str:tx_id>', other_views.mark_as_paid, name='mark_as_paid'),
-]
+if getattr(settings, 'COIN_PAYMENT_DEBUG', False):
+    urlpatterns +=  [
+        path('debug/mark_as_paid/<str:tx_id>', other_views.mark_as_paid, name='mark_as_paid'),
+    ]
